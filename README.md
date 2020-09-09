@@ -318,3 +318,343 @@ $ docker tag <Pulled_Image_Name>:<Tag-Name> <docker.io User Name>/<New Image Nam
 $ docker push <docker.io User Name>/<New Image Name>:<Tag_Name>
 ```
 #### => Don't push Images with Password
+
+# Dockerfile
+
+### => This is a small program to create an image
+```
+$ docker build -t <My_Result_Name> .
+=> -t : Tag Name
+=> . : The Path Of the docker file
+=> When it finishes, the result will be in our local docker registry
+```
+
+## Producing the Next Image with Each Step:
+### => Each line takes the image from the previous line and makes another image
+### => The previous image is unchanged
+### => It does not edit the state from the previous line
+### => We don't want large files to span lines or our images will be huge
+
+## Caching With Each Step:
+### => This is important, watch the build output for "using cache"
+### => Docker skips lines that have not changed since last build
+### => If our first line is "download latest file", it may not always run
+### => This caching saves huge amount of time 
+### => The parts that changes the most belong at the end of the Dockerfile
+
+## Dockerfiles are not shell scripts:
+### => Processes we start on one line will not be running on the next line
+### => Environment variables we set will be set on the next line: If we use the ENV command remember that each line is its own call to docker run.
+
+## Make Dockerfile:
+```
+$ sudo vim Dockerfile
+```
+### => Add following data:
+```
+FROM <Image_Name>
+RUN echo "building simple docker image"
+CMD echo "hello container"
+```
+## Build Docker Image:
+```
+$ docker build -t <My_Container_Name> .
+```
+
+## Install a Program with Docker Build:
+=> Put following in Dockerfile:
+```
+FROM debian:sid
+RUN apt-get -y update
+RUN apt-get install nano
+CMD ["/bin/nano", "/tmp/notes"]
+```
+
+## Adding a File Through Docker Build and Opening it:
+=> Put following in Dockerfile:
+```
+FROM <Existing_Container_Name>
+ADD notes.txt /notes.txt
+CMD ["/bin/nano", "/notes.txt"]
+```
+
+# Dockerfile Syntax:
+
+## The FROM Statement:
+=> Which image to dowload and start from 
+=> Must be the first command in your Dockerfile
+
+## The MAINTAINER Statement:
+=> Defines the author of the Dockerfile
+```
+MAINTAINER FirstName LastName <email@domain.com>
+```
+
+## The RUN Statement:
+### => Runs the command line, waits for it to finish, and saves the result
+
+## The ADD Statement:
+### => Adds local files:
+```
+ADD run.sh /run.sh
+```
+
+### => Adds the contents of tar archives:
+```
+ADD project.tar.gz /install/
+```
+
+### => Works with URLs as well:
+```
+ADD https://project.domain.com/download/project.rpm /project/
+```
+
+## The ENV Statement:
+### => Sets environment variables:
+### => Both during the build and when running the result:
+```
+ENV DB_HOST=db.production.domain.com
+ENV DB_PORT=5432
+```
+
+## The ENTRYPOINT Statement:
+### => ENTRYPOINT specifies the start of the command to run
+
+## The CMD Statement:
+### => CMD specifies the whole command to run
+
+### => If we have both ENTRYPOINT and CMD, they are combined together
+### => If our constainer acts like a command-line program, we can use ENTRYPOINT
+
+## The EXPOSE Statement:
+### => Maps a port into the container
+```
+EXPOSE 8080
+```
+
+## The VOLUME Statement:
+### => Defines shared or ephemeral volumes:
+```
+VOLUME ["host/path/", "container/path/"]
+VOLUME ["/shared-data"]
+```
+### => Avoid defining shared folders in Dockerfiles
+
+## The WORKDIR Statement:
+### => Sets the directory the container starts in 
+```
+WORKDIR /install/
+```
+
+## The USER Statement:
+### => Sets which user the container will run as
+```
+USER abhiguptame
+```
+
+### REFERENCES: https://docs.docker.com/engine/reference/builder/
+
+
+### Multi-project Docker files:
+
+#### => Run a container which gives the size of a page:
+
+### Put following in Dockerfile:
+
+```
+FROM ubuntu:16.04
+RUN apt-get update
+RUN apt-get -y install curl 
+RUN curl https://google.com | wc -c > google-size
+ENTRYPOINT echo google is this big: cat google-size
+```
+### => wc : word count
+### Here size of the image: ~171 MB
+
+## To reduces the size of the image:
+### => Now split the Dockerfile content as following:
+
+```
+FROM ubuntu:16.04 as <Container_Name>
+RUN apt-get update
+RUN apt-get -y install curl 
+RUN curl https://google.com | wc -c > google-size
+
+FROM <New_Container_Name>
+COPY --from=<Container_Name> /google-size /google-size
+ENTRYPOINT echo google is this big: cat google-size
+```
+
+### => Here Size of the image: ~4.4 MB
+
+## Preventing the Golden Image Problem:
+### => Include installers in your project
+### => Have a canonical build that builds everything completely from scratch 
+### => Tag builds with the git hash of the code that built in
+### => Use small base images
+### => Build images you share publically from Dockerfiles, always
+### => Don't ever leave passwords in layers; delete files in the same step!
+
+## What Kernels Do:
+### => Responds to messages from the hardware
+### => Starts and schedule programs
+### => Control and organize storage
+### => Pass messages between programs
+### => Allocate resources, memory, CPU, network, and so on 
+### => Create containers by Docker configuring the kernel
+
+## What Docker (Program written in Go) Does:
+### => Manage kernel features: 
+### 1) Uses "cgroups" to contain processes
+### 2) Uses "namespaces" to contain networks
+### 3) Uses "copy-on-write" filesystems to build images
+
+### => Makes scripting distributed system "easy"
+
+## Docker is two programs: a client and a server
+### => The server receives commands over a socket (either over a network or through a "file", docker.sock)
+### => The client can even run inside docker itself
+
+## To See The Bridge Details:
+```
+$ apt-get install bridge-utils
+```
+
+## Show Bridge Details:
+```
+$ brctl show 
+```
+
+## Bridging:
+### => Docker uses bridges to create virtual networks in our computer
+### => These are software switches
+### => They control the Ethernet layer
+### => We can turn off this protection with 
+```
+$ docker run --net=host options <Image_Name> command
+$ docker run --net=host --priviledged=true ubuntu bash
+```
+
+## Routing:
+### => Creates "firewall" rules to move packets between networks
+### => Change the source address on the way out
+### => Change the destination address on the way back in
+### => "Exposing" a port is really "port forwarding"
+
+## To Check Routing:
+```
+$ sudo iptables -n -L -t nat
+```
+
+## To Install iptables:
+```
+$ sudo apt-get iptables
+```
+
+## Namespaces:
+### => They allow processes to be attached to private network segments
+### => These private networks are bridged into a shared network with the rest of the containers
+### => Contaniers have virtual network "cards"
+### => Containers get their own copy of the networking stack 
+
+
+## Process and cgroups:
+### => In Docker, our container starts with an init process and vanishes when process exits
+
+## To Find the info of container process:
+```
+$ docker inspect --format '{{.state.pid}}' <Container_Name>
+```
+
+## Resource Limiting:
+### => Scheduled CPU time
+### => Memory allocation limits
+### => Inherited limitation and qhotas
+### => Can't escape your limits by starting more processes
+
+## Storage:
+### The Secret of Docker: COWs (copy on write)
+
+## Moving COWs:
+### => The Contents of layers are moved between containers in gzip files
+### => The containers are independent of the storage engine
+### => Any containers can be loaded (almost) anywhere
+### => It is possible to run out of layers on some of the storage engines
+
+## Volumes and Bind Mounting:
+### => The Linux VFS (Virtual File System)
+### => Mounting devices on the VFS
+### => Mounting directories on the VFS
+
+### To Mount:
+```
+$ mount -o bind <First-Folder-Path> <Second-Folder-Path>
+```
+
+### To Unmount:
+```
+$ umount <Second-Folder-Path>
+```
+
+### To Show all the directories with file info:
+```
+$ ls -R
+```
+
+#### => Mounting voulumes, always mounts the hosts's filesystem over the guest
+
+### What is a Docker Registry?
+### => Is a program
+### => Stores layers and images
+### => Listems on (usually) port 5000
+### => Maintains an index and searched tags
+### => Autorizes and authenticates connections (sometimes)
+### => The registery is a Docker Service.
+
+```
+$ docker run -d -p 5000:5000 --restart:always --name <Give-New-Registry-Name> <Image-Name>:<Tag or Version Name>
+$ docker run -d -p 5000:5000 --restart:always --name new-registry registry:2
+
+```
+### More Info: https://docs.docker.com/registry/
+
+## Saving and Loading Containers:
+```
+$ docker save -o <File-Name(Mostly tar.gz)> <Image-Name>:<Tag-Name> <Image-Name>:<Tag-Name> <Image-Name>:<Tag-Name>
+$ docker load -i <File-Name>
+
+=> -o : Output
+=> -i : Input
+```
+## Orchestrations:
+### => Start Containers and restart them if they fail
+### => Service discovery, allow them to find each other
+### => Resource allocation, match containers to computes
+
+## Docker Compose:
+### => Single machine coordination
+### => Designed for testing and development
+### => Bring up all your containers, volumes, networks, etc., with one command
+
+## Kubernetes:
+### => Containers run programs
+### => Pods group containers together
+### => Services make pods available to others
+### => Labels are used for very advanced service discovery
+### => Built in service discovery 
+### => More Info: https://kubernetes.io/
+
+## EC2 Container Service (ECS):
+### => Task Definitions: Define a set of containers that always runtogether
+### => Tasks: Actually makes a container run right now
+### => Services and exposes it to the Net: Ensures that a task is running all the time
+
+## Advantages of ECS:
+### => Connects load balancers (ELBs) to service
+### => Can create our own host instances in AWS
+### => Make your instances start the agent and join the cluster
+### => Pass the docker control socket into the agent
+### => Provides docker repos, and its easy to run our own repos
+### => Note that containers (tasks) can be part of CloudFormation stacks!
+### => More Info: https://aws.amazon.com/ecs/
+### => Other Option: https://aws.amazon.com/fargate/
